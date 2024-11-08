@@ -3,26 +3,34 @@
 import re
 import time
 import webbrowser
+from configparser import ConfigParser
 
 import pyperclip
 
-HOST = ''
-LIST_OF_PROJECTS = ['BE', 'FE']
+CONFIG_HEADER = 'DEFAULT'
 
 
 def main():
-    if HOST == '':
+    config = ConfigParser()
+    config.read('configuration.ini')
+    section = config[CONFIG_HEADER]
+    host = section['host']
+    one_line_projects = section['list_of_projects'].split(',')
+    list_of_projects = [x.strip() for x in one_line_projects]
+
+    if host == '':
         print('Please define a HOST')
         return
-    projects = '|'.join(LIST_OF_PROJECTS)
+
+    projects = '|'.join(list_of_projects)
     print('Watching for jira links')
     while True:
         clipboard = pyperclip.paste()
-        if re.match(r'('+projects+r')-\d+(\r\n)?$', clipboard):
+        if re.match('(' + projects + r')-\d+(\r\n)?$', clipboard):
             print(clipboard)
             pyperclip.copy('')
             webbrowser.open(
-                f'https://{HOST}.atlassian.net/browse/{clipboard}')
+                f'https://{host}.atlassian.net/browse/{clipboard}')
         time.sleep(1)
 
 

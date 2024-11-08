@@ -1,0 +1,8 @@
+_internal/
+build/
+dist/
+logs_history/
+log-*
+report-log-*
+merged_report.csv
+tasklogger.spec

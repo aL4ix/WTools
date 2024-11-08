@@ -4,7 +4,7 @@ import json
 import subprocess
 from typing import Dict, List
 
-HEADER = 'Configuration'
+CONFIG_HEADER = 'Configuration'
 
 
 def find_requests(item_list: List, output=None) -> List:
@@ -27,7 +27,7 @@ def find_requests(item_list: List, output=None) -> List:
 def runner():
     config = configparser.ConfigParser()
     config.read_file(open('configuration.ini'))
-    url = config[HEADER]['url']
+    url = config[CONFIG_HEADER]['url']
 
     subprocess.check_call(f'curl --output collection.json {url}', shell=True)
     with codecs.open('collection.json', encoding='utf-8') as f:

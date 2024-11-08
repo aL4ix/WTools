@@ -10,8 +10,7 @@ REPORT_COLUMNS = ['name', 'time']
 ADD_NEW_TASK = 'Add new task'
 SOMETHING = 'Something'
 FINISH = 'Finish'
-NATIVE_TASKS = (ADD_NEW_TASK, SOMETHING, FINISH, 'SH', 'GO')
-NOT_REMOVABLE = list(NATIVE_TASKS).extend([''])
+NATIVE_TASKS = (ADD_NEW_TASK, SOMETHING, FINISH, 'SH', 'GO', 'Meetings')
 
 
 def main():
@@ -38,10 +37,8 @@ def main():
     current_task_str_var = tk.StringVar()
     combo = ttk.Combobox(root, textvariable=current_task_str_var, state='readonly')
     combo.pack(side=tk.LEFT, expand=True, fill=tk.X)
-    # edit_btn = ttk.Button(root, text="Edit")
-    # edit_btn.pack(side=tk.LEFT)
-    remove_btn = ttk.Button(root, text="Remove")
-    remove_btn.pack(side=tk.LEFT)
+    edit_btn = ttk.Button(root, text="Edit")
+    edit_btn.pack(side=tk.LEFT)
 
     combo['values'] = list_of_tasks
     combo.set(last_task)
@@ -62,23 +59,17 @@ def main():
         my_tasks.append({REPORT_COLUMNS[0]: task_to_add,
                          REPORT_COLUMNS[1]: datetime.datetime.now()})
 
-    def remove_event(event):
-        task = current_task_str_var.get()
-        if task not in NOT_REMOVABLE:
-            current = list(combo['values'])
-            current.remove(task)
-            combo['values'] = current
-            combo.set(SOMETHING)
+    def edit_event(event):
+        universal_startfile(report_name)
 
     def close_root_event():
-        df = pd.DataFrame(my_tasks, columns=REPORT_COLUMNS)
-        print(df)
-        df.to_csv(report_name)
+        temp_df = pd.DataFrame(my_tasks, columns=REPORT_COLUMNS)
+        print(temp_df)
+        temp_df.to_csv(report_name)
         root.destroy()
 
     combo.bind('<<ComboboxSelected>>', combo_changed_event)
-    bind_button(remove_btn, remove_event)
-    # bind_button(edit_btn, edit_event)
+    bind_button(edit_btn, edit_event)
     root.protocol("WM_DELETE_WINDOW", close_root_event)
 
     root.mainloop()
@@ -87,6 +78,16 @@ def main():
 def bind_button(remove_btn, remove_event):
     remove_btn.bind('<Return>', remove_event)
     remove_btn.bind('<Button-1>', remove_event)
+
+
+def universal_startfile(filepath):
+    import subprocess, os, platform
+    if platform.system() == 'Darwin':
+        subprocess.call(('open', filepath))
+    elif platform.system() == 'Windows':
+        os.startfile(filepath)
+    else:
+        subprocess.call(('xdg-open', filepath))
 
 
 if __name__ == '__main__':
