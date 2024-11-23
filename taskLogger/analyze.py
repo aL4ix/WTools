@@ -17,7 +17,7 @@ def create_reports():
         # Extract the base name (e.g., 'report-2024-10-28.csv')
         base_name = os.path.basename(file)
 
-        df = pd.read_csv(base_name, index_col=0, parse_dates=['time'])
+        df = pd.read_csv(base_name, parse_dates=['time'])
 
         # Calculate the time spent on each task
         df['next_time'] = df['time'].shift(-1)

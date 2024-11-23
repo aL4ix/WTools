@@ -138,11 +138,37 @@ def report_tcs_by_refs(tcs_files: list[str], refs: list[str], input_folder: str,
     df.to_csv(os.path.join(output_folder, outfile))
 
 
+def watch_for_postman_test_ids_and_get_refs(facade: TestrailFacade, jira_host: str, testrail_host: str):
+    import re
+    import pyperclip
+    import time
+    import webbrowser
+    print('Watching for postman test ids')
+    while True:
+        clipboard = pyperclip.paste()
+        if re.match(r'C\d+$', clipboard):
+            clipboard = clipboard.removeprefix('C')
+            print(clipboard)
+            pyperclip.copy('')
+            res = facade.get_case(clipboard)
+            refs = res['refs']
+            print(refs)
+            if refs is None:
+                url = f'{testrail_host}index.php?/cases/view/{clipboard}'
+            else:
+                pyperclip.copy(refs)
+                url = f'https://{jira_host}.atlassian.net/browse/{refs}'
+            webbrowser.open(url)
+        time.sleep(1)
+
+
 def main():
     config = configparser.ConfigParser()
     config.read('configuration.ini')
     default_section = config[DEFAULT_SECTION]
-    client = APIClient(default_section['host'])
+    host = default_section['host']
+    jira_host = default_section['jira_host']
+    client = APIClient(host)
     client.user = default_section['username']
     client.password = default_section['password']
     facade = TestrailFacade(client)
@@ -151,6 +177,7 @@ def main():
     # remove_untested_from_test_run(facade, test_run_id)
     # ids_to_add = get_list_of_cases_from_test(facade, test_urls_in_a_str_with_enters)
     # add_cases_to_run(facade, test_run_id, ids_to_add)
+    # watch_for_postman_test_ids_and_get_refs(facade, jira_host, host)
 
 
 if __name__ == '__main__':
