@@ -3,7 +3,7 @@ import os
 
 import pandas as pd
 
-from testrail import APIClient
+from testrail import APIClient, APIError
 from testrail_facade import TestrailFacade
 
 DEFAULT_SECTION = 'DEFAULT'
@@ -162,6 +162,27 @@ def watch_for_postman_test_ids_and_get_refs(facade: TestrailFacade, jira_host: s
         time.sleep(1)
 
 
+def get_test_runs_ids_and_names_from_test_plan(facade: TestrailFacade, test_plan_id:id):
+    result = []
+    response = facade.get_plan(test_plan_id)
+    for entry in response['entries']:
+        result.append((entry['runs'][0]['id'], entry['name']))
+    return result
+
+
+def report_list_of_tuples_to_csv(list_of_tuples: list[tuple], csv_file_name: str):
+    df = pd.DataFrame(list_of_tuples)
+    df.to_csv(csv_file_name, index=False)
+
+
+def check_case_ids_exist(facade: TestrailFacade, test_ids_and_source: list[tuple]):
+    for case_id, source in test_ids_and_source:
+        try:
+            facade.get_case(case_id)
+        except APIError as e:
+            print(f'Failed to get case_id "{case_id}" with source "{source}"\n{e}')
+
+
 def main():
     config = configparser.ConfigParser()
     config.read('configuration.ini')
@@ -178,6 +199,9 @@ def main():
     # ids_to_add = get_list_of_cases_from_test(facade, test_urls_in_a_str_with_enters)
     # add_cases_to_run(facade, test_run_id, ids_to_add)
     # watch_for_postman_test_ids_and_get_refs(facade, jira_host, host)
+    # r = get_test_runs_ids_and_names_from_test_plan(facade, test_plan_id)
+    # report_list_of_tuples_to_csv(r, 'report.csv')
+    # check_case_ids_exist(facade, [])
 
 
 if __name__ == '__main__':

@@ -39,6 +39,9 @@ class TestrailFacade:
     def get_case(self, case_id: int) -> dict:
         return self.client.send_get(f'get_case/{case_id}')
 
+    def get_plan(self, plan_id: int) -> dict:
+        return self.client.send_get(f'get_plan/{plan_id}')
+
     def report_test_cases(self, project_ids_suite_ids: list[tuple[int]], filename_prefix: str, folder: str):
         """
 

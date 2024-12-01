@@ -3,13 +3,26 @@ import configparser
 import csv
 import json
 import os
+import re
 import subprocess
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from typing import Dict, List
+
+import pandas as pd
 
 CONFIGURATION_INI = 'configuration.ini'
 DEFAULT_SECTION = 'DEFAULT'
 TEST_RUN_ID_COLUMN = 'testRunId'
+
+
+@dataclass
+class JunitResults:
+    test_path: str
+    test_name: str
+    status: bool
+    failure_reason: str
+    response_body: str
 
 
 def find_requests(item_list: List, output=None) -> List:
@@ -40,14 +53,16 @@ def fetch():
     default_section = get_config_default_section()
     url = default_section['url']
     key = default_section['key']
-    fetch_collection = default_section['fetch_collection']
-    if fetch_collection:
-        cmd = f'curl --output collection.postman_collection.json {url}?access_key={key}'
-        print(cmd)
-        r = input('RUN? [yn] ').lower()
-        if r == 'y':
-            subprocess.check_call(cmd, shell=True)
+    cmd = f'curl --output collection.postman_collection.json {url}?access_key={key}'
+    print(cmd)
+    if user_confirmation() == 'y':
+        subprocess.check_call(cmd, shell=True)
     return url
+
+
+def user_confirmation():
+    r = input('RUN? [yn] ').lower()
+    return r
 
 
 def runner_with_filter():
@@ -57,7 +72,7 @@ def runner_with_filter():
         collection = json.loads(text)
         o = find_requests(collection['collection']['item'])
         cmd_lines = []
-        start_cmd = f'npx newman run {url} -e QA.postman_environment.json -r junit'
+        start_cmd = f'newman run {url} -e QA.postman_environment.json -r junit'
         cmd_line = start_cmd
         for t in o:
             if len(cmd_line) > 8000:
@@ -83,58 +98,64 @@ def runner_with_filter():
         subprocess.check_call('npx jrm combined.xml newman/*.xml', shell=True)
 
 
-def parse_junit(junit_file):
+def parse_junit(junit_file) -> list[JunitResults]:
     tree = ET.parse(junit_file)
     root = tree.getroot()
 
-    passed_tests = []
-    failed_tests = []
+    tests = []
 
     for testsuite in root.iter('testsuite'):
-        suite_name = testsuite.attrib.get('name')
+        test_path = testsuite.attrib.get('name')
 
         for testcase in testsuite.iter('testcase'):
             test_name = testcase.attrib.get('name')
-            result = 'passed'
+            status = True
             failure_reason = ''
 
             failure = testcase.find('failure')
             error = testcase.find('error')
 
-            if failure is not None:
-                result = 'failed'
+            if failure is not None or error is not None:
+                status = False
                 failure_reason = failure.text.strip()
-            elif error is not None:
-                result = 'failed'
-                failure_reason = error.text.strip()
 
-            if result == 'passed':
-                passed_tests.append((suite_name, test_name))
-            else:
-                failed_tests.append((suite_name, test_name, failure_reason))
+            tests.append(JunitResults(test_path, test_name, status, failure_reason, ''))
 
-    return passed_tests, failed_tests
+    return tests
 
 
-def create_csv_report(passed_tests, failed_tests, output_file):
-    with open(output_file, mode='w', newline='') as file:
+def create_csv_report(tests: list[JunitResults], output_file):
+    with open(output_file, mode='w', newline='', encoding='utf8') as file:
         writer = csv.writer(file)
-        writer.writerow(['Test Suite', 'Test Case', 'Result', 'Failure Reason'])
+        writer.writerow(['Test Path', 'Test Case', 'Status', 'Failure Reason', 'Response Body'])
 
-        for class_name, test_name in passed_tests:
-            writer.writerow([class_name, test_name, 'passed', ''])
-
-        for class_name, test_name, failure_reason in failed_tests:
-            writer.writerow([class_name, test_name, 'failed', failure_reason])
-
-
-def runner():
-    cmd = 'npx newman run collection.postman_collection.json ' \
-          '-e QA.postman_environment.json -r junit,progress,csv --reporter-csv-includeBody'
-    subprocess.check_call(cmd, shell=True)
+        for test in tests:
+            test_path = test.test_path
+            test_name = test.test_name
+            status = test.status
+            failure_reason = test.failure_reason
+            body = test.response_body
+            writer.writerow([test_path, test_name, status, failure_reason, body])
 
 
-def run_and_report_to_testrail(project_id: int, suite_id: int, run_id: int, folders: list[str] = None, ddt: str = None,
+def runner(environment: str, folders: list[str] = None):
+    if folders:
+        folder_param = '--folder'
+        folder_params = ' '.join([f'{folder_param} "{folder}"' for folder in folders])
+    else:
+        folder_params = ''
+    cmd = (f'newman run collection.postman_collection.json {folder_params} '
+           f'-e {environment}.postman_environment.json -r junit,csv,cli --reporter-csv-includeBody '
+           f'--reporter-junit-export newman/newman-run-report.xml '
+           f'--reporter-csv-export newman/newman-run-report.csv ')
+    print(cmd)
+    uc = user_confirmation()
+    if uc == 'y':
+        subprocess.call(cmd, shell=True)
+
+
+def run_and_report_to_testrail(environment: str, project_id: int, suite_id: int, run_id: int, folders: list[str] = None,
+                               ddt: str = None,
                                user_input=''):
     default_section = get_config_default_section()
     os.environ['TESTRAIL_DOMAIN'] = default_section['TESTRAIL_DOMAIN']
@@ -155,7 +176,7 @@ def run_and_report_to_testrail(project_id: int, suite_id: int, run_id: int, fold
     else:
         ddt_param = ''
 
-    cmd = (f'newman run collection.postman_collection.json -e QA.postman_environment.json -r testrail,cli '
+    cmd = (f'newman run collection.postman_collection.json -e {environment}.postman_environment.json -r testrail,cli '
            f'{folder_params} {ddt_param}')
     print(cmd)
     if user_input != 'a':
@@ -165,7 +186,7 @@ def run_and_report_to_testrail(project_id: int, suite_id: int, run_id: int, fold
     return user_input
 
 
-def ddt_with_a_test_run_per_line(project_id: int, suite_id: int, folders: list[str] = None):
+def ddt_with_a_test_run_per_line(environment: str, project_id: int, suite_id: int, folders: list[str] = None):
     user_input = ''
     with open('DDT_one_test_run_per_line.csv', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
@@ -180,19 +201,77 @@ def ddt_with_a_test_run_per_line(project_id: int, suite_id: int, folders: list[s
                 writer.writerow(row)
 
             print(open(file_name).read())
-            user_input = run_and_report_to_testrail(project_id, suite_id, test_run_id, folders, file_name, user_input)
+            user_input = run_and_report_to_testrail(environment, project_id, suite_id, test_run_id, folders, file_name,
+                                                    user_input)
+
+
+def find_request_item(data):
+    if 'item' in data:
+        for item in data['item']:
+            yield from find_request_item(item)
+    else:
+        yield data
+
+
+def extract_request_and_test_names(file_path: str) -> list[tuple]:
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    folders = data['collection']['item']
+
+    requests_and_test_names = []
+
+    for folder in folders:
+        for request_item in find_request_item(folder):
+
+            if request_item:
+                request_name = request_item['name']
+                for event in request_item.get('event', []):
+                    if event['listen'] == 'test':
+                        script = ''.join(event['script']['exec'])
+                        for match in re.finditer(r'pm\.test\("(.*)"\s*,', script):
+                            test_name = match.group(1)
+                            requests_and_test_names.append((request_name, test_name))
+                        break
+    return requests_and_test_names
+
+
+def extract_unique_test_ids(requests_and_test_names: list[tuple]) -> list[tuple]:
+    test_ids = []
+    for request, test_name in requests_and_test_names:
+        match = re.search(r'^C(\d+)', test_name)
+        if match:
+            test_ids.append((match.group(1), request))
+    return test_ids
+
+
+def add_body_to_failed_tests_from_csv_report(tests: list[JunitResults], csv_report: str, add_body_to_passed: bool):
+    df = pd.read_csv(csv_report, keep_default_na=False)
+
+    for test in tests:
+        if add_body_to_passed or test.status == False:
+            request_name = test.test_path.split(' / ')[-1]
+            name_ = df.loc[df['requestName'] == request_name]
+            body_df = name_['body']
+            body = body_df.values[0]
+            test.response_body = body
 
 
 def main():
-    # runner()
-    # passed, failed = parse_junit('newman/newman-run-report.xml')
-    # create_csv_report(passed, failed, 'report.csv')
-    fetch()
-    folders = ['Folder one', 'Folder two']
+    folders = ['Folder1',
+               'Test1']
     project_id = 12
     suite_id = 12345
+    fetch()
+    runner('QA')
+    tests = parse_junit('newman/newman-run-report.xml')
+    add_body_to_failed_tests_from_csv_report(tests, 'newman/newman-run-report.csv', False)
+    create_csv_report(tests, 'report.csv')
+
     # run_and_report_to_testrail(project_id, suite_id, 23456, folders)
-    ddt_with_a_test_run_per_line(project_id, suite_id, folders)
+    # ddt_with_a_test_run_per_line('QA', project_id, suite_id, folders)
+    # requests_and_test_names = extract_request_and_test_names('collection.postman_collection.json')
+    # test_ids = extract_unique_test_ids(requests_and_test_names)
 
 
 if __name__ == '__main__':
