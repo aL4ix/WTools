@@ -5,6 +5,7 @@ import json
 import os
 import re
 import subprocess
+import typing
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Dict, List
@@ -92,7 +93,6 @@ def runner_with_filter():
             for retry in range(3):
                 rc = subprocess.call(c, shell=True)
                 print(rc)
-                break
                 if rc == 0:
                     break
         subprocess.check_call('npx jrm combined.xml newman/*.xml', shell=True)
@@ -182,7 +182,7 @@ def run_and_report_to_testrail(environment: str, project_id: int, suite_id: int,
     if user_input != 'a':
         user_input = input('RUN? [yna] ').lower()
     if user_input in ('y', 'a'):
-        subprocess.call(cmd, shell=True)
+        subprocess.check_call(cmd, shell=True)
     return user_input
 
 
@@ -194,6 +194,10 @@ def ddt_with_a_test_run_per_line(environment: str, project_id: int, suite_id: in
         for row in reader:
             test_run_id = row[TEST_RUN_ID_COLUMN]
             file_name = 'DDT.csv'
+
+            if typing.TYPE_CHECKING:
+                from _typeshed import SupportsWrite
+                new_csvfile: SupportsWrite[str]
 
             with open(file_name, mode='w', newline='', encoding='utf-8') as new_csvfile:
                 writer = csv.DictWriter(new_csvfile, fieldnames=fieldnames)
@@ -258,18 +262,20 @@ def add_body_to_failed_tests_from_csv_report(tests: list[JunitResults], csv_repo
 
 
 def main():
-    folders = ['Folder1',
-               'Test1']
-    project_id = 12
-    suite_id = 12345
+    default_section = get_config_default_section()
+    folders = default_section['folders']
+    project_id = default_section['project_id']
+    suite_id = default_section['suite_id']
+    run_id = default_section['run_id']
+    environment = default_section['environment']
     fetch()
-    runner('QA')
+    runner(environment)
     tests = parse_junit('newman/newman-run-report.xml')
     add_body_to_failed_tests_from_csv_report(tests, 'newman/newman-run-report.csv', False)
     create_csv_report(tests, 'report.csv')
 
-    # run_and_report_to_testrail(project_id, suite_id, 23456, folders)
-    # ddt_with_a_test_run_per_line('QA', project_id, suite_id, folders)
+    # run_and_report_to_testrail(environment, project_id, suite_id, run_id, folders)
+    # ddt_with_a_test_run_per_line(environment, project_id, suite_id, folders)
     # requests_and_test_names = extract_request_and_test_names('collection.postman_collection.json')
     # test_ids = extract_unique_test_ids(requests_and_test_names)
 
