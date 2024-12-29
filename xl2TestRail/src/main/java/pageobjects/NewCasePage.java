@@ -22,6 +22,8 @@ public class NewCasePage extends Page {
     private static final String closeAnnouncement = "//button[@aria-label='Close']";
     private static final String successfullyCreatedTest = "//div[contains(@class,'message-success')]";
     private static final String TEST_CASE_STEPS = "Test Case (Steps)";
+    private static final String EDIT = "//a[@data-testid='testCaseEditButton']";
+    private static final String SAVE = "//button[@data-testid='addTestCaseButton']";
 
 
     public NewCasePage(Browser browser) {
@@ -58,11 +60,16 @@ public class NewCasePage extends Page {
         System.out.println("READY?");
         browser.sleep(5000);
         browser.click(acceptAndNextButton);
+//        browser.click(SAVE);
         System.out.println("SUBMITTED");
         browser.waitForReadyStateComplete();
         browser.waitForVisibilityOfElement(successfullyCreatedTest);
         browser.sleep(1000);
 
         return new NewCasePage(browser);
+    }
+
+    public void edit() {
+        browser.click(EDIT);
     }
 }

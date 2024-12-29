@@ -103,10 +103,11 @@ public class Browser implements AutoCloseable {
     public void click(String xpath) {
         WebElement e = findElementWithClickAbilityOfElement(xpath);
         try {
-            scrollIntoView(xpath);
             e.click();
-        } catch (StaleElementReferenceException ignored) {
-            findElementWithClickAbilityOfElement(xpath).click();
+        } catch (StaleElementReferenceException | ElementClickInterceptedException ignored) {
+            moveToElement(xpath);
+            WebElement again = findElementWithClickAbilityOfElement(xpath);
+            again.click();
         }
     }
 
