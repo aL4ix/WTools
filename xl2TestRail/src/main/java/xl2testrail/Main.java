@@ -1,6 +1,7 @@
 package xl2testrail;
 
 import browser.Browser;
+import pageobjects.FolderPage;
 import pageobjects.HomePage;
 import pageobjects.NewCasePage;
 import pageobjects.TestRailPage;
@@ -34,6 +35,9 @@ public class Main {
             HomePage homePage = testRailPage.login(user, passwd);
             NewCasePage newCasePage = homePage.addCaseToFolder(folderNum);
             for (Case aCase : cases) {
+                /*FolderPage folderPage = homePage.openFolder("/index.php?/suites/view/13944&group_by=cases:section_id&group_order=asc&display_deleted_cases=0&group_id=1381179");
+                NewCasePage newCasePage = folderPage.openCaseWithTitle(aCase.getTitle());
+                newCasePage.edit();*/
                 newCasePage.createNewCase(aCase, section, type, refs, device, groups, isAutomated);
             }
         }

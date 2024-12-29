@@ -15,4 +15,9 @@ public class HomePage extends Page {
         browser.get(host + String.format(addCaseToFolderToFormat, folderNum));
         return new NewCasePage(browser);
     }
+
+    public FolderPage openFolder(String url) {
+        browser.get(host + url);
+        return new FolderPage(browser);
+    }
 }

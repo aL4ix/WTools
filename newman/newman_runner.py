@@ -232,7 +232,7 @@ def extract_request_and_test_names(file_path: str) -> list[tuple]:
                 request_name = request_item['name']
                 for event in request_item.get('event', []):
                     if event['listen'] == 'test':
-                        script = ''.join(event['script']['exec'])
+                        script = '\n'.join(event['script']['exec'])
                         for match in re.finditer(r'pm\.test\("(.*)"\s*,', script):
                             test_name = match.group(1)
                             requests_and_test_names.append((request_name, test_name))
