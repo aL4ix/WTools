@@ -170,8 +170,8 @@ def get_test_runs_ids_and_names_from_test_plan(facade: TestrailFacade, test_plan
     return result
 
 
-def report_list_of_tuples_to_csv(list_of_tuples: list[tuple], csv_file_name: str):
-    df = pd.DataFrame(list_of_tuples)
+def report_list_of_tuples_to_csv(list_of_tuples: list[tuple], csv_file_name: str, columns):
+    df = pd.DataFrame(list_of_tuples, columns=columns)
     df.to_csv(csv_file_name, index=False)
 
 
@@ -181,6 +181,23 @@ def check_case_ids_exist(facade: TestrailFacade, test_ids_and_source: list[tuple
             facade.get_case(case_id)
         except APIError as e:
             print(f'Failed to get case_id "{case_id}" with source "{source}"\n{e}')
+
+
+def merge_test_runs(facade: TestrailFacade, test_run_ids: list[int]):
+    merged = []
+    statuses = facade.get_statuses()
+    for run_id in test_run_ids:
+        tests = facade.get_tests_from_run(run_id, '')
+        for test in tests['tests']:
+            title = test['title']
+            case_id = test['case_id']
+            refs = test['refs']
+            status_id = test['status_id']
+            # Search the status id within the statuses
+            status = next((s['label'] for s in statuses if s['id'] == status_id))
+            row = (title, case_id, refs, status)
+            merged.append(row)
+    report_list_of_tuples_to_csv(merged, 'merged_test_runs.csv', ('Title', 'Case id', 'Refs', 'Status'))
 
 
 def main():
