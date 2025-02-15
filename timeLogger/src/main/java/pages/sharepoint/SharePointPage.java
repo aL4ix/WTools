@@ -1,8 +1,12 @@
 package pages.sharepoint;
 
+import enums.CollegeActivity;
+import models.BulkEntryRow;
 import models.TimeEntry;
 import models.TimeGroup;
 import pages.TimeLogger;
+
+import java.util.List;
 
 public class SharePointPage extends TimeLogger implements AutoCloseable {
 
@@ -22,6 +26,24 @@ public class SharePointPage extends TimeLogger implements AutoCloseable {
             timeEntryPage.createEntry(group.getIssue(), entry);
             System.out.println("Created!");
         }
+        return true;
+    }
+
+    public boolean logBulk(String issue, List<BulkEntryRow> bulkEntryRows) {
+        BulkPage bulkPage = timeEntryPage.goToBulk();
+
+        int rowNum = 0;
+        for (BulkEntryRow row : bulkEntryRows) {
+            CollegeActivity activity = CollegeActivity.TESTING;
+            if (row.title().equals("Meetings")) {
+                activity = CollegeActivity.MEETING;
+            }
+            bulkPage.createEntry(issue, activity, row, rowNum);
+
+            rowNum++;
+        }
+
+        browser.sleep(50000);
         return true;
     }
 

@@ -13,16 +13,16 @@ public class TimeEntryPage extends Page {
     private static final String HOURS = "//input[@name=\"hours\"]";
     private static final String SUMMARY = "//textarea[@name=\"comments\"]";
     private static final String SUBMIT = "//button[@type=\"submit\"]";
+    private static final String BULK_ENTRY = "//button[text()='Bulk Entry']";
 
-    //static final String //div[./span=01]
     public TimeEntryPage(Browser browser) {
         super(browser);
         browser.waitForClickAbilityOfElement(SUBMIT);
     }
 
     public boolean createEntry(String issue, TimeEntry entry) {
-        handleCombo(ISSUE, issue);
-        handleCombo(ACTIVITY, entry.activity().getDisplayedName());
+        handleCombo(browser, ISSUE, issue);
+        handleCombo(browser, ACTIVITY, entry.activity().getDisplayedName());
         browser.sendKeys(DATE, String.format("%02d", entry.date().getDayOfMonth()));
         browser.sendKeysWithClear(HOURS, entry.hours().toString());
         browser.sendKeys(SUMMARY, entry.description());
@@ -38,9 +38,14 @@ public class TimeEntryPage extends Page {
         return true;
     }
 
-    private void handleCombo(String xpath, String text) {
+    public static void handleCombo(Browser browser, String xpath, String text) {
         browser.click(xpath + "/..");
         browser.sendKeysWithClear(xpath, text);
         browser.sendKeys(xpath, Keys.TAB);
+    }
+
+    public BulkPage goToBulk() {
+        browser.click(BULK_ENTRY);
+        return new BulkPage(browser);
     }
 }

@@ -208,7 +208,7 @@ def main():
     jira_host = default_section['jira_host']
     client = APIClient(host)
     client.user = default_section['username']
-    client.password = default_section['password']
+    client.password = default_section['api_key']
     facade = TestrailFacade(client)
 
     # remove_a11y_and_mobile_for_test_run(facade, test_run_id)
