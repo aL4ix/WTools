@@ -1,5 +1,7 @@
 import configparser
 import os
+import time
+from dataclasses import dataclass
 
 import pandas as pd
 
@@ -170,12 +172,13 @@ def get_test_runs_ids_and_names_from_test_plan(facade: TestrailFacade, test_plan
     return result
 
 
-def report_list_of_tuples_to_csv(list_of_tuples: list[tuple], csv_file_name: str, columns):
-    df = pd.DataFrame(list_of_tuples, columns=columns)
+def report_list_of_tuples_to_csv(list_of_tuples: list[tuple], csv_file_name: str):
+    df = pd.DataFrame(list_of_tuples)
     df.to_csv(csv_file_name, index=False)
 
 
 def check_case_ids_exist(facade: TestrailFacade, test_ids_and_source: list[tuple]):
+    print('Started')
     for case_id, source in test_ids_and_source:
         try:
             facade.get_case(case_id)
@@ -187,6 +190,8 @@ def merge_test_runs(facade: TestrailFacade, test_run_ids: list[int]):
     merged = []
     statuses = facade.get_statuses()
     for run_id in test_run_ids:
+        run = facade.get_run(run_id)
+        run_name = run['name']
         tests = facade.get_tests_from_run(run_id, '')
         for test in tests['tests']:
             title = test['title']
@@ -195,9 +200,78 @@ def merge_test_runs(facade: TestrailFacade, test_run_ids: list[int]):
             status_id = test['status_id']
             # Search the status id within the statuses
             status = next((s['label'] for s in statuses if s['id'] == status_id))
-            row = (title, case_id, refs, status)
+            row = (title, case_id, refs, run_name, status)
             merged.append(row)
-    report_list_of_tuples_to_csv(merged, 'merged_test_runs.csv', ('Title', 'Case id', 'Refs', 'Status'))
+    columns = ('Title', 'Case id', 'Refs', 'Run name', 'Status')
+    df = pd.DataFrame(merged, columns=columns)
+    df.to_csv('merged_test_runs.csv', index=False)
+
+
+def add_references_to_run(facade: TestrailFacade, test_run_id: int, ref: str):
+    tests = facade.get_tests_from_run(test_run_id, '')
+    for test in tests['tests']:
+        case_id = test['case_id']
+        refs = test['refs']
+        fields = {'refs': f'{refs},{ref}'}
+        facade.update_case(case_id, fields)
+
+
+def create_cases_from_csv(facade: TestrailFacade, csv_file: str, section_id: int, refs: str):
+    df = pd.read_csv(csv_file, dtype=str, keep_default_na=False)
+    @dataclass
+    class Step:
+        content: str
+        expected: str
+
+    @dataclass
+    class Test:
+        title: str
+        steps: list[Step]
+        case_id: int
+
+    # Parse file
+    tests: list[Test] = []
+    there_is_one_ready = False
+    title = ''
+    steps = []
+    case_id = -1
+    scenario_idx = []
+    for row in df.itertuples():
+        if len(row[1]):
+            if there_is_one_ready:
+                tests.append(Test(title, steps, case_id))
+                steps = []
+            scenario_idx.append(row[0])
+            title = row[1]
+            steps.append(Step(row[2], row[3]))
+            case_id_str = row[4]
+            if case_id_str:
+                case_id = int(case_id_str)
+            there_is_one_ready = True
+        else:
+            steps.append(Step(row[2], row[3]))
+    tests.append(Test(title, steps, case_id))
+
+    for scenario_num, test in enumerate(tests):
+        parsed_steps = []
+        for step in steps:
+            parsed_steps.append({
+                'content': step.content,
+                'expected': step.expected
+            })
+        fields = {
+            'title': test.title,
+            'template_id': 2,
+            'type_id': 6,
+            'refs': refs,
+            'custom_steps_separated': parsed_steps,
+        }
+        # print(facade.get_case_types())
+        idx = scenario_idx[scenario_num]
+        response = facade.add_case(section_id, fields)
+        case_id = response['id']
+        df.at[idx, 'Test Case Id'] = case_id
+    df.to_csv(csv_file, index=False)
 
 
 def main():
@@ -208,7 +282,7 @@ def main():
     jira_host = default_section['jira_host']
     client = APIClient(host)
     client.user = default_section['username']
-    client.password = default_section['api_key']
+    client.password = default_section['password']
     facade = TestrailFacade(client)
 
     # remove_a11y_and_mobile_for_test_run(facade, test_run_id)
@@ -218,7 +292,14 @@ def main():
     # watch_for_postman_test_ids_and_get_refs(facade, jira_host, host)
     # r = get_test_runs_ids_and_names_from_test_plan(facade, test_plan_id)
     # report_list_of_tuples_to_csv(r, 'report.csv')
-    # check_case_ids_exist(facade, [])
+
+    # df = pd.read_csv('report_ids1.csv')
+    # ids_to_find = []
+    # for index, line in df.iterrows():
+    #     ids_to_find.append((line['id'], line['source']))
+    # check_case_ids_exist(facade, ids_to_find)
+    # add_references_to_run(facade, 12345, 'ABC-123')
+    create_cases_from_csv(facade, 'result.csv', 12345, 'ABC-123')
 
 
 if __name__ == '__main__':

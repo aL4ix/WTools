@@ -2,8 +2,11 @@ package main;
 
 import com.opencsv.exceptions.CsvValidationException;
 import models.BulkEntryRow;
+import models.TimeGroup;
+import pages.goldmine.GoldMinePage;
 import pages.sharepoint.SharePointPage;
 import utils.BulkCSVProcessor;
+import utils.CSVParser;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -19,9 +22,12 @@ public class Main {
 
         List<BulkEntryRow> bulkEntryRows = BulkCSVProcessor.parseBulkFile("merged_report.csv");
 
-        try (SharePointPage sharepoint = new SharePointPage(conf.username(), conf.password(), conf.browser(), conf.url())) {
-//            sharepoint.logTimeGroup(timeGroup);
-            sharepoint.logBulk(conf.issue(), bulkEntryRows);
+//        try (SharePointPage sharepoint = new SharePointPage(conf.username(), conf.password(), conf.browser(), conf.url())) {
+////            sharepoint.logTimeGroup(timeGroup);
+//            sharepoint.logBulk("12345 - Project", bulkEntryRows);
+//        }
+        try(GoldMinePage goldMinePage = new GoldMinePage(conf.username(), conf.password(), conf.browser(), conf.url())) {
+            goldMinePage.logBulk("12345", bulkEntryRows);
         }
     }
 
@@ -33,10 +39,9 @@ public class Main {
         String password = properties.getProperty("password");
         String browser = properties.getProperty("browser");
         String url = properties.getProperty("url");
-        String issue = properties.getProperty("issue");
-        return new Configuration(username, password, browser, url, issue);
+        return new Configuration(username, password, browser, url);
     }
 
-    public record Configuration(String username, String password, String browser, String url, String issue) {
+    public record Configuration(String username, String password, String browser, String url) {
     }
 }

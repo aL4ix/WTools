@@ -29,7 +29,7 @@ public class TimeGroup {
     public String toString() {
         return "TimeGroup{" +
                 "issue='" + issue + '\'' +
-                ", entries=" + entries +
+                ", dateHourEntries=" + entries +
                 '}';
     }
 }

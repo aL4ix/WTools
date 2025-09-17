@@ -6,8 +6,8 @@ import utils.Browser;
 public class HomePage extends Page {
 
     private static final String HOME_H2 = "//h2[text()='Home']";
-    private static final String ISSUES_URL = "%s/goldmine/issues/%d?tab=time_entries";
-    private static final String LOG_TIME_URL = "%s/goldmine/issues/%d/time_entries/new";
+    private static final String ISSUES_URL = "%s/issues/%d?tab=time_entries";
+    private static final String LOG_TIME_URL = "%s/issues/%d/time_entries/new";
     private final String url;
 
     public HomePage(Browser browser, String url) {

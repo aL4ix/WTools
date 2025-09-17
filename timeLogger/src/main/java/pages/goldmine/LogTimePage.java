@@ -45,13 +45,13 @@ public class LogTimePage extends Page {
         browser.sendKeys(DATE_INPUT, date2);
         String date3 = String.format("%04d", date.getYear());
         browser.sendKeys(DATE_INPUT, date3);
-        browser.sendKeys(HOURS_INPUT, String.valueOf(hours));
-        browser.sendKeys(COMMENTS_INPUT, comment);
+        browser.sendKeysWithClear(HOURS_INPUT, String.valueOf(hours));
+        browser.sendKeysWithClear(COMMENTS_INPUT, comment);
         browser.selectByVisibleText(ACTIVITY_SELECT, benchActivity.getDisplayedName());
-        //ui.sleep(5000);
+        browser.sleep(2000);
         browser.click(CREATE_BUTTON);
         browser.waitForVisibilityOfElement(FLASH_NOTICE);
-        Assert.assertEquals(browser.getText(FLASH_NOTICE), "Successful creation.");
+        Assert.assertEquals("Successful creation.", browser.getText(FLASH_NOTICE));
         return new SpentTimePage(browser);
     }
 }

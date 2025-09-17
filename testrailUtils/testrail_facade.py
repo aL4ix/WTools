@@ -2,9 +2,11 @@ import os
 
 import pandas as pd
 
+from testrailUtils.testrail import APIClient
+
 
 class TestrailFacade:
-    def __init__(self, testrail_client):
+    def __init__(self, testrail_client: APIClient):
         self.client = testrail_client
 
     def update_run(self, body: dict, test_run_id: int) -> dict:
@@ -25,7 +27,7 @@ class TestrailFacade:
             one = self.client.send_get(next_[8:])
         return result
 
-    def get_statuses(self) -> dict:
+    def get_statuses(self) -> list[dict]:
         return self.client.send_get('get_statuses')
 
     @staticmethod
@@ -60,3 +62,12 @@ class TestrailFacade:
             df = pd.DataFrame(tcs)
             outfile = f'{filename_prefix}_{project_id}_{suite_id}.csv'
             df.to_csv(os.path.join(folder, outfile))
+
+    def update_case(self, case_id: int, fields: dict):
+        return self.client.send_post(f'update_case/{case_id}', fields)
+
+    def add_case(self, section_id: int, fields: dict):
+        return self.client.send_post(f'add_case/{section_id}', fields)
+
+    def get_case_types(self):
+        return self.client.send_get(f'get_case_types')

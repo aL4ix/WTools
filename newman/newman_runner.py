@@ -1,11 +1,11 @@
 import codecs
 import configparser
 import csv
+import inspect
 import json
 import os
 import re
 import subprocess
-import typing
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Dict, List
@@ -51,6 +51,7 @@ def get_config_default_section():
 
 
 def fetch():
+    print(inspect.currentframe().f_code.co_name+'()')
     default_section = get_config_default_section()
     url = default_section['url']
     key = default_section['key']
@@ -90,7 +91,7 @@ def runner_with_filter():
         for t in o:
             c = f'{start_cmd} --folder "{t}"'
             print(c)
-            for retry in range(3):
+            for _ in range(3):
                 rc = subprocess.call(c, shell=True)
                 print(rc)
                 if rc == 0:
@@ -139,6 +140,7 @@ def create_csv_report(tests: list[JunitResults], output_file):
 
 
 def runner(environment: str, folders: list[str] = None):
+    print(inspect.currentframe().f_code.co_name+'()')
     if folders:
         folder_param = '--folder'
         folder_params = ' '.join([f'{folder_param} "{folder}"' for folder in folders])
@@ -157,13 +159,17 @@ def runner(environment: str, folders: list[str] = None):
 def run_and_report_to_testrail(environment: str, project_id: int, suite_id: int, run_id: int, folders: list[str] = None,
                                ddt: str = None,
                                user_input=''):
+    print(inspect.currentframe().f_code.co_name+'()')
     default_section = get_config_default_section()
     os.environ['TESTRAIL_DOMAIN'] = default_section['TESTRAIL_DOMAIN']
     os.environ['TESTRAIL_USERNAME'] = default_section['TESTRAIL_USERNAME']
     os.environ['TESTRAIL_APIKEY'] = default_section['TESTRAIL_APIKEY']
     os.environ['TESTRAIL_PROJECTID'] = str(project_id)
     os.environ['TESTRAIL_SUITEID'] = str(suite_id)
-    os.environ['TESTRAIL_RUNID'] = str(run_id)
+    if run_id:
+        os.environ['TESTRAIL_RUNID'] = str(run_id)
+    os.environ['TESTRAIL_LOGGING'] = 'full'
+    os.environ['TESTRAIL_INCLUDEALL'] = 'false'
 
     if folders:
         folder_param = '--folder'
@@ -176,6 +182,7 @@ def run_and_report_to_testrail(environment: str, project_id: int, suite_id: int,
     else:
         ddt_param = ''
 
+    subprocess.check_call('set', shell=True)
     cmd = (f'newman run collection.postman_collection.json -e {environment}.postman_environment.json -r testrail,cli '
            f'{folder_params} {ddt_param}')
     print(cmd)
@@ -195,16 +202,12 @@ def ddt_with_a_test_run_per_line(environment: str, project_id: int, suite_id: in
             test_run_id = row[TEST_RUN_ID_COLUMN]
             file_name = 'DDT.csv'
 
-            if typing.TYPE_CHECKING:
-                from _typeshed import SupportsWrite
-                new_csvfile: SupportsWrite[str]
-
             with open(file_name, mode='w', newline='', encoding='utf-8') as new_csvfile:
                 writer = csv.DictWriter(new_csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerow(row)
 
-            print(open(file_name).read())
+            print(open(file_name, encoding='utf-8').read())
             user_input = run_and_report_to_testrail(environment, project_id, suite_id, test_run_id, folders, file_name,
                                                     user_input)
 
@@ -240,12 +243,12 @@ def extract_request_and_test_names(file_path: str) -> list[tuple]:
     return requests_and_test_names
 
 
-def extract_unique_test_ids(requests_and_test_names: list[tuple]) -> list[tuple]:
-    test_ids = []
+def extract_unique_test_ids(requests_and_test_names: list[tuple]) -> dict:
+    test_ids = {}
     for request, test_name in requests_and_test_names:
         match = re.search(r'^C(\d+)', test_name)
         if match:
-            test_ids.append((match.group(1), request))
+            test_ids[match.group(1)] = request
     return test_ids
 
 
@@ -261,6 +264,23 @@ def add_body_to_failed_tests_from_csv_report(tests: list[JunitResults], csv_repo
             test.response_body = body
 
 
+def jenkins_run(environment: str, project_id: int, suite_id: int):
+    print(inspect.currentframe().f_code.co_name+'()')
+    default_section = get_config_default_section()
+    os.environ['TESTRAIL_DOMAIN'] = default_section['TESTRAIL_DOMAIN']
+    os.environ['TESTRAIL_USERNAME'] = default_section['TESTRAIL_USERNAME']
+    os.environ['TESTRAIL_APIKEY'] = default_section['TESTRAIL_APIKEY']
+    os.environ['TESTRAIL_PROJECTID'] = str(project_id)
+    os.environ['TESTRAIL_SUITEID'] = str(suite_id)
+    os.environ['TESTRAIL_LOGGING'] = 'full'
+    # os.environ['TESTRAIL_INCLUDEALL'] = 'false'
+
+    subprocess.check_call('set', shell=True)
+    cmd = f'newman run collection.postman_collection.json -e {environment}.postman_environment.json -r cli,junit,allure,testrail --reporter-junit-export newman/Learning_Destinations_ms_userQA_junit.xml --env-var Suite=Regression'
+    print(cmd)
+    subprocess.check_call(cmd, shell=True)
+
+
 def main():
     default_section = get_config_default_section()
     folders = default_section['folders']
@@ -268,17 +288,27 @@ def main():
     suite_id = default_section['suite_id']
     run_id = default_section['run_id']
     environment = default_section['environment']
-    fetch()
-    runner(environment)
-    tests = parse_junit('newman/newman-run-report.xml')
-    add_body_to_failed_tests_from_csv_report(tests, 'newman/newman-run-report.csv', False)
-    create_csv_report(tests, 'report.csv')
+
+    # fetch()
+    # runner(environment)
+    # tests = parse_junit('newman/newman-run-report.xml')
+    # add_body_to_failed_tests_from_csv_report(tests, 'newman/newman-run-report.csv', False)
+    # create_csv_report(tests, 'report.csv')
 
     # run_and_report_to_testrail(environment, project_id, suite_id, run_id, folders)
     # ddt_with_a_test_run_per_line(environment, project_id, suite_id, folders)
+
     # requests_and_test_names = extract_request_and_test_names('collection.postman_collection.json')
     # test_ids = extract_unique_test_ids(requests_and_test_names)
+    # df = pd.DataFrame.from_dict(test_ids, orient='index', columns=['source'])
+    # df.index.name = 'id'
+    # print(df)
+    # df.to_csv('report_ids.csv')
+
+    # jenkins_run(environment, project_id, suite_id)
+    print('Finished')
 
 
 if __name__ == '__main__':
     main()
+    print('\a')

@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import simpledialog
 from tkinter import ttk
 
-import pandas as pd
+import ssie
 
 REPORT_NAME_FMT = 'log-{}.csv'
 REPORT_COLUMNS = ['name', 'time']
@@ -18,25 +18,26 @@ class Report:
         today = datetime.date.today()
         self.report_path = REPORT_NAME_FMT.format(today)
 
-    def load(self, list_of_tasks):
+    def load(self, list_of_tasks) -> tuple[str, list[dict]]:
         last_task = ''
         my_tasks = []
         try:
-            df = pd.read_csv(self.report_path)
+            ss = ssie.read_file(self.report_path)
             print(f'Reading from existent file {self.report_path}')
-            my_tasks = df.to_dict('records')
-            tasks_from_file = df.name.unique().tolist()
+            my_tasks = ss.to_dict_records()
+            names = ss.get_column('name')
+            tasks_from_file = unique_preserve_order(names)
             new_tasks_from_file = [task for task in tasks_from_file if task not in NATIVE_TASKS]
             list_of_tasks.extend(new_tasks_from_file)
-            if len(df) > 0:
-                last_task = df.iloc[-1][REPORT_COLUMNS[0]]
+            if len(ss) > 0:
+                last_task = names[-1]
         except FileNotFoundError:
             print(f'Starting new file {self.report_path}')
         return last_task, my_tasks
 
-    def save(self, my_tasks):
-        temp_df = pd.DataFrame(my_tasks, columns=REPORT_COLUMNS)
-        temp_df.to_csv(self.report_path, index=False)
+    def save(self, my_tasks: list[dict]):
+        ss = ssie.from_records(my_tasks)
+        ss.to_file(self.report_path)
 
     def get_report_path(self):
         return self.report_path
@@ -98,6 +99,11 @@ def universal_startfile(filepath):
         os.startfile(filepath)
     else:
         subprocess.call(('xdg-open', filepath))
+
+
+def unique_preserve_order(l):
+    seen = set()
+    return [x for x in l if not (x in seen or seen.add(x))]
 
 
 if __name__ == '__main__':

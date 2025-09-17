@@ -13,7 +13,7 @@ public class TimeEntryPage extends Page {
     private static final String HOURS = "//input[@name=\"hours\"]";
     private static final String SUMMARY = "//textarea[@name=\"comments\"]";
     private static final String SUBMIT = "//button[@type=\"submit\"]";
-    private static final String BULK_ENTRY = "//button[text()='Bulk Entry']";
+    private static final String BULK = "//button[text()='Bulk Entry']";
 
     public TimeEntryPage(Browser browser) {
         super(browser);
@@ -45,7 +45,7 @@ public class TimeEntryPage extends Page {
     }
 
     public BulkPage goToBulk() {
-        browser.click(BULK_ENTRY);
+        browser.click(BULK);
         return new BulkPage(browser);
     }
 }

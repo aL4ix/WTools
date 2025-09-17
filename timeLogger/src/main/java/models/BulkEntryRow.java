@@ -5,9 +5,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public record BulkEntryRow(String title, List<BulkDateHour> dateHourEntries) {
-    public BulkEntryRow(String title) {
-        this(title, new ArrayList<>());
+public record BulkEntryRow(String ticketTitle, List<BulkDateHour> dateHourEntries) {
+    public BulkEntryRow(String ticketTitle) {
+        this(ticketTitle, new ArrayList<>());
     }
 
     public void addDateHours(LocalDate date, BigDecimal hours) {

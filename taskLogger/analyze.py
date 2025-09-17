@@ -96,4 +96,5 @@ def merge_reports():
 
 if __name__ == '__main__':
     create_reports()
-    # merge_reports()
+    merge_reports()
+

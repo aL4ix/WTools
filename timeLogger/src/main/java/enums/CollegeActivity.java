@@ -17,4 +17,12 @@ public enum CollegeActivity implements Activity {
     public String getDisplayedName() {
         return displayedName;
     }
+
+    public static Activity getActivityFromTicketTitle(String ticketTitle) {
+        CollegeActivity activity = CollegeActivity.TESTING;
+        if (ticketTitle.startsWith("Meetings")) {
+            activity = CollegeActivity.MEETING;
+        }
+        return activity;
+    }
 }

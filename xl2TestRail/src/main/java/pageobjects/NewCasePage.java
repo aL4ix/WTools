@@ -59,8 +59,8 @@ public class NewCasePage extends Page {
 
         System.out.println("READY?");
         browser.sleep(5000);
-        browser.click(acceptAndNextButton);
 //        browser.click(SAVE);
+        browser.click(acceptAndNextButton);
         System.out.println("SUBMITTED");
         browser.waitForReadyStateComplete();
         browser.waitForVisibilityOfElement(successfullyCreatedTest);
